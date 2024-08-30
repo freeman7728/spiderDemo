@@ -2,7 +2,7 @@
  * @Description:
  * @author: freeman7728
  * @Date: 2024-08-29 19:28:02
- * @LastEditTime: 2024-08-30 18:34:28
+ * @LastEditTime: 2024-08-30 18:57:48
  * @LastEditors: freeman7728
  */
 package main
@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 
@@ -57,12 +58,19 @@ var DB *sql.DB
 func main() {
 	InitDB()
 	idx = 1
+	start := time.Now()
+	ch := make(chan bool)
 	for i := 0; i < 10; i++ {
-		Spider(strconv.Itoa(i * 25))
+		go Spider(strconv.Itoa(i*25), ch)
 	}
+	for i := 0; i < 10; i++ {
+		<-ch
+	}
+	elapsed := time.Since(start)
+	fmt.Printf("NormalStart Time %s \n", elapsed)
 }
 
-func Spider(page string) {
+func Spider(page string, ch chan bool) {
 	//发送请求
 	client := http.Client{}
 	//分页
@@ -83,7 +91,6 @@ func Spider(page string) {
 	if err != nil {
 		fmt.Println("body解析失败", err)
 	}
-
 	//#content > div > div.article > ol > li
 	//#content > div > div.article > ol > li:nth-child(1) > div > div.pic > a > img
 	//#content > div > div.article > ol > li:nth-child(1) > div > div.info > div.bd > p:nth-child(1)
@@ -116,7 +123,9 @@ func Spider(page string) {
 				idx += 1
 			}
 		})
-
+	if ch != nil {
+		ch <- true
+	}
 }
 
 //数据的处理
@@ -141,7 +150,7 @@ func InitDB() {
 	path := strings.Join([]string{USERNAME, ":", PASSWORD, "@tcp(", HOST, ":", PORT, ")/", DBNAME, "?charset=utf8"}, "")
 	DB, _ = sql.Open("mysql", path)
 	DB.SetConnMaxLifetime(10)
-	DB.SetMaxIdleConns(5)
+	DB.SetMaxIdleConns(10)
 	if err := DB.Ping(); err != nil {
 		fmt.Println("err", err)
 		return
