@@ -2,7 +2,7 @@
  * @Description:
  * @author: freeman7728
  * @Date: 2024-08-29 19:28:02
- * @LastEditTime: 2024-08-30 11:15:46
+ * @LastEditTime: 2024-08-30 13:58:09
  * @LastEditors: freeman7728
  */
 package main
@@ -11,18 +11,48 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-func main() {
-	Spider()
+var idx int
+
+type movieData struct {
+	Title    string `json:"title"`
+	Rank     string `json:"rank"`
+	ImgUrl   string `json:"imgUrl"`
+	Score    string `json:"score"`
+	Quote    string `json:"quote"`
+	Year     string `json:"year"`
+	Director string `json:"director"`
+	Actor    string `json:"actor"`
 }
 
-func Spider() {
+func (m *movieData) PrintToScreen() {
+	fmt.Println("Title", m.Title)
+	fmt.Println("Rank", m.Rank)
+	fmt.Println("ImgUrl", m.ImgUrl)
+	fmt.Println("Score", m.Score)
+	fmt.Println("Quote", m.Quote)
+	fmt.Println("Year", m.Year)
+	fmt.Println("Director", m.Director)
+	fmt.Println("Actor", m.Actor)
+}
+
+func main() {
+	idx = 1
+	for i := 0; i < 10; i++ {
+		Spider(strconv.Itoa(i * 25))
+	}
+
+}
+
+func Spider(page string) {
 	//TODO 发送请求
 	client := http.Client{}
-	req, err := http.NewRequest("GET", "https://movie.douban.com/top250", nil)
+	//TODO 分页
+	req, err := http.NewRequest("GET", "https://movie.douban.com/top250?start="+page, nil)
 	if err != nil {
 		fmt.Println("err", err)
 	}
@@ -59,6 +89,7 @@ func Spider() {
 	//#content > div > div.article > ol > li:nth-child(1) > div > div.info > div.bd > p:nth-child(1)
 	//#content > div > div.article > ol > li:nth-child(1) > div > div.info > div.bd > div > span.rating_num
 	//#content > div > div.article > ol > li:nth-child(1) > div > div.info > div.bd > p.quote > span
+
 	docDetail.Find("#content > div > div.article > ol > li").
 		Each(func(i int, s *goquery.Selection) {
 			title := s.Find("div > div.info > div.hd > a > span:nth-child(1)").Text()
@@ -68,16 +99,20 @@ func Spider() {
 			score := s.Find("div > div.info > div.bd > div > span.rating_num").Text()
 			quote := s.Find("div > div.info > div.bd > p.quote > span").Text()
 			if ok {
-				fmt.Println("rank:", i)
-				fmt.Println("title:", title)
-				fmt.Println("imgTmp:", imgTmp)
-				fmt.Println("info:", info)
-				fmt.Println("score:", score)
-				fmt.Println("quote:", quote)
 				d, a, y := InfoSplit(info)
-				fmt.Println("year:", y)
-				fmt.Println("director:", d)
-				fmt.Println("actor:", a)
+				curMovie := &movieData{
+					Title:    title,
+					Rank:     strconv.Itoa(idx),
+					ImgUrl:   imgTmp,
+					Score:    score,
+					Quote:    quote,
+					Year:     y,
+					Director: d,
+					Actor:    a,
+				}
+				fmt.Println(*curMovie)
+				//curMovie.PrintToScreen()
+				idx += 1
 			}
 		})
 
