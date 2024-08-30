@@ -2,21 +2,35 @@
  * @Description:
  * @author: freeman7728
  * @Date: 2024-08-29 19:28:02
- * @LastEditTime: 2024-08-30 13:58:09
+ * @LastEditTime: 2024-08-30 14:32:07
  * @LastEditors: freeman7728
  */
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
+
+	_ "github.com/jinzhu/gorm/dialects/mysql"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 var idx int
+
+const (
+	USERNAME = "root"
+	PASSWORD = "root"
+	HOST     = "127.0.0.1"
+	PORT     = "3306"
+	DBNAME   = "douban_movie"
+)
+
+var DB *sql.DB
 
 type movieData struct {
 	Title    string `json:"title"`
@@ -42,9 +56,10 @@ func (m *movieData) PrintToScreen() {
 
 func main() {
 	idx = 1
-	for i := 0; i < 10; i++ {
-		Spider(strconv.Itoa(i * 25))
-	}
+	InitDB()
+	// for i := 0; i < 10; i++ {
+	// 	Spider(strconv.Itoa(i * 25))
+	// }
 
 }
 
@@ -57,19 +72,6 @@ func Spider(page string) {
 		fmt.Println("err", err)
 	}
 	//添加请求头使其符合浏览器访问的形式
-	// req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-	// req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
-	// req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-	// req.Header.Set("Cache-Control", "max-age=0")
-	// req.Header.Set("Priority", "u=0, i")
-	// req.Header.Set("Sec-Ch-Ua", "")
-	// req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
-	// req.Header.Set("Sec-Ch-Ua-Platform", "Windows")
-	// req.Header.Set("Sec-Fetch-Dest", "document")
-	// req.Header.Set("Sec-Fetch-Mode", "navigate")
-	// req.Header.Set("Sec-Fetch-Site", "none")
-	// req.Header.Set("Sec-Fetch-User", "?1")
-	// req.Header.Set("Upgrade-Insecure-Requests", "1")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
 
 	resp, err := client.Do(req)
@@ -82,14 +84,13 @@ func Spider(page string) {
 	if err != nil {
 		fmt.Println("body解析失败", err)
 	}
-	//TODO 获取节点
-	//
+
 	//#content > div > div.article > ol > li
 	//#content > div > div.article > ol > li:nth-child(1) > div > div.pic > a > img
 	//#content > div > div.article > ol > li:nth-child(1) > div > div.info > div.bd > p:nth-child(1)
 	//#content > div > div.article > ol > li:nth-child(1) > div > div.info > div.bd > div > span.rating_num
 	//#content > div > div.article > ol > li:nth-child(1) > div > div.info > div.bd > p.quote > span
-
+	//TODO 获取节点
 	docDetail.Find("#content > div > div.article > ol > li").
 		Each(func(i int, s *goquery.Selection) {
 			title := s.Find("div > div.info > div.hd > a > span:nth-child(1)").Text()
@@ -134,4 +135,17 @@ func InfoSplit(info string) (director, actor, year string) {
 	year = yearReg.FindString(info)
 	director = directorReg.FindString(info)
 	return
+}
+
+// TODO 数据库的初始化
+func InitDB() {
+	path := strings.Join([]string{USERNAME, ":", PASSWORD, "@tcp(", HOST, ":", PORT, ")/", DBNAME, "?charset=utf8"}, "")
+	DB, _ := sql.Open("mysql", path)
+	DB.SetConnMaxLifetime(10)
+	DB.SetMaxIdleConns(5)
+	if err := DB.Ping(); err != nil {
+		fmt.Println("err", err)
+		return
+	}
+	fmt.Println("connect success => ", path)
 }
